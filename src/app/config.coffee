@@ -74,7 +74,7 @@ require.config
     three_csg:        "../assets/js/plugins/ThreeCSG"
     combo_cam:        "../assets/js/plugins/CombinedCamera"
     orbit_ctrl:       "../assets/js/plugins/OrbitControls"#"../assets/js/plugins/CustomOrbitControls"
-    ### 
+
     track_ctrl :      "../assets/js/plugins/three/TrackBallControls"
     CopyShader:       "../assets/js/plugins/three/CopyShader"
     EffectComposer:   "../assets/js/plugins/three/EffectComposer"
@@ -82,7 +82,6 @@ require.config
     ShaderPass:       "../assets/js/plugins/three/ShaderPass"
     DotScreenShader :   "../assets/js/plugins/three/DotScreenShader"
     DotScreenPass :   "../assets/js/plugins/three/DotScreenPass"
-    ###
     
   shim:
     #any AMD compliant lib should NOT need shims

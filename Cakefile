@@ -57,6 +57,7 @@ build = (src_extension, targ_extension, command, options) ->
 
 copyTemplate = (src_path)->
   file = src_path
+  path.sep = '/'
   rootdir = file.split(path.sep)[0]
   if rootdir == "src"
     fileName = path.basename(file)
