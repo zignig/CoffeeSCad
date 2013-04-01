@@ -1,8 +1,9 @@
 require.config
-  deps: ["main"]
+  deps: ["requireLib", "main"]
   
   config: 
     text:
+      #env:'node'
       env: 'xhr'
   waitSeconds:200
 
@@ -17,8 +18,8 @@ require.config
     underscore:       "../assets/js/libs/underscore-min"
     backbone:         "../assets/js/libs/backbone"
     bootstrap:        "../assets/js/libs/bootstrap.min"
-    CoffeeScript:     "../assets/js/libs/CoffeeScript"
     CodeMirror:       "../assets/js/libs/codemirror"
+    CoffeeScript:     "../assets/js/libs/CoffeeScript"
     #csg:              "../assets/js/libs/csg"
     lightgl:          "../assets/js/libs/lightgl"
     three:            "../assets/js/libs/three"
@@ -98,7 +99,7 @@ require.config
     notify:
       dep:["bootstrap"]
     'backbone':
-      deps:    ["underscore"]
+      deps:    ["jquery","underscore"]
       exports:  "Backbone"
     marionette:
       deps:    ["jquery", "backbone","eventbinder","wreqr"]
@@ -120,11 +121,11 @@ require.config
     backbone_nested:
       deps:["backbone"]
     
-    CoffeeScript:
-      exports:  "CoffeeScript"
+    #CoffeeScript:
+    #  exports:  "CoffeeScript"
     coffeelint:
       deps:    ["CoffeeScript"]
-      exports:  "coffeelint"
+      #exports:  "coffeelint"
     CodeMirror:
       exports:  "CodeMirror"
     foldcode:

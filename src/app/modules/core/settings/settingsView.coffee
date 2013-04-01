@@ -15,7 +15,7 @@ define (require)->
   sc_template = require "text!./settingsContent.tmpl"
   sca_template = require "text!./settingsContentAll.tmpl"
   
-  reqRes = require 'modules/core/reqRes'#request response system , see backbone marionnette docs
+  reqRes = require 'modules/core/messaging/appReqRes'#request response system , see backbone marionnette docs
   
   
   class SettingsView extends Backbone.Marionette.Layout
@@ -128,17 +128,13 @@ define (require)->
             type: 'Number'
           csgBackgroundProcessing:
             type: 'Checkbox'
-          maxRecentFilesDisplay: 
-            type:'Number'
-            title: 'Max recent files to display'
-          
           autoReloadLastProject:
             type:'Checkbox'
             title: 'Reload last project on application start'
             
           theme:
             type:'Select'
-            options : ["slate", "spacelab"]
+            options : ["default", "spacelab","slate"]
         options.fieldsets=[
           "legend": "CSG compiling settings"
           "fields": ["csgCompileMode","csgCompileDelay","csgBackgroundProcessing"]
@@ -147,7 +143,7 @@ define (require)->
           "fields":["autoReloadLastProject"]
         , 
           "legend":"Other settings"
-          "fields": ["maxRecentFilesDisplay","theme"]
+          "fields": ["theme"]
           
         ]
       super options
@@ -180,28 +176,9 @@ define (require)->
   class KeybindingsForm extends Backbone.Form
     
     constructor:(options)->
-      bla=(obj)->
-        console.log obj
-        return #{obj}
       if not options.schema
-        options.schema = 
-          #toto: 'CustomEditor'
-          notes:
-            type: "List"
-            listType: 'Text'
-            #itemType: 'Select', options:["toto","tata"]
-            itemToString: (object)-> console.log(object)
-            #listTemplate: 
-          general:
-            type: "Object"
-            title:''
-            subSchema:
-              undo:
-                title:"undo"
-                type:"Text"
-              redo:
-                title:"redo"
-                type:"Text"
+        options.schema = {}
+          
       super options
       
   class KeyBindingsWrapper extends Backbone.Marionette.ItemView

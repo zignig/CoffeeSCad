@@ -1,5 +1,5 @@
 define (require) ->
-  reqRes = require 'modules/core/reqRes'
+  reqRes = require 'modules/core/messaging/appReqRes'
   utils = require "modules/core/utils/utils"
   CoffeeScript = require 'CoffeeScript'
   
@@ -107,7 +107,9 @@ define (require) ->
     
     parseScriptASync:(script, params)->
       #Parse the given coffeescad script in a seperate thread (web worker)
-      rootUrl = (document.location.href).replace('#','').replace('index.html','')
+      rootUrl = window.location.protocol + '//' + window.location.host+ window.location.pathname
+      rootUrl = rootUrl.replace('index.html','')
+      console.log "rootUrl "+rootUrl
       workerScript = """
       var rootUrl = "#{rootUrl}";
       importScripts(rootUrl + '/assets/js/libs/require.min.js');
@@ -163,8 +165,6 @@ define (require) ->
         if e.data
           if e.data.cmd is 'rendered'
             logEntries = e.data.logEntries
-            console.log(logEntries)
-            
             converters = require './converters' 
             rootAssembly = converters.fromCompactBinary(e.data.rootAssembly)
             partRegistry = e.data.partRegistry
@@ -182,19 +182,7 @@ define (require) ->
         errtxt = "Error in line " + error.lineno + ": " + error.message
         @callback(null, null, null, errtxt) 
       worker.postMessage("render")
-    
-            
-    convertToSolid : (obj) ->
-      ###
-      if( (typeof(obj) == "object") and ((obj instanceof CAG)) )
-        # convert a 2D shape to a thin solid:
-        obj=obj.extrude({offset: [0,0,0.1]})
-      else if( (typeof(obj) == "object") and ((obj instanceof CSG)) )
-        # obj already is a solid
-      else
-        throw new Error("Cannot convert to solid");
-      ###
-      return obj
+      return
 
   #######################
   ### 

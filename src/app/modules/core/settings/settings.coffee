@@ -68,8 +68,7 @@ define (require)->
       
       autoReloadLastProject : false
       
-      maxRecentFilesDisplay:  5
-      theme: "slate"
+      theme: "default"
       
     constructor:(options)->
       super options
@@ -79,11 +78,6 @@ define (require)->
     defaults:
       name: "KeyBindings"
       title: "Key Bindings"
-      notes: [{"Undo","CTRL+Z"},{"tata":"pouet"}]
-      general:
-        undo:   "CTRL+Z"
-        redo:   "CTRL+Y"
-      toto: "sdgsdf"
       
     constructor:(options)->
       super options

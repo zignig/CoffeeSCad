@@ -7,9 +7,9 @@ define (require)->
   require 'bootbox'
   require 'notify'
   
-  vent = require './vent'
+  vent = require 'modules/core/messaging/appVent'
   
-  mainMenuMasterTemplate = require "text!./mainMenu.tmpl"
+  mainMenuMasterTemplate = require "text!modules/core/mainMenu.tmpl"
   
   mainMenuTemplate = _.template($(mainMenuMasterTemplate).filter('#mainMenuTmpl').html())
   recentFileTemplate = _.template($(mainMenuMasterTemplate).filter('#recentFileTmpl').html())
@@ -62,6 +62,7 @@ define (require)->
       @vent.on("project:loaded",()=>@_onNotificationRequested("Project:loaded"))
       @vent.on("project:saved",()=>@_onNotificationRequested("Project:saved"))
       @vent.on("project:compiled",()=>@_onNotificationRequested("Project:compiled"))
+      @vent.on("project:compile:error",()=>@_onNotificationRequested("Project:compile ERROR check console for details!"))
       @vent.on("project:loaded", @onProjectLoaded)
     
     _onNotificationRequested:(message)=>
@@ -129,13 +130,14 @@ define (require)->
       @_addExporterEntries()
       @_addStoreEntries()
       @delegateEvents()
+      
+      @examplesStub.show( new ExamplesView())
     
     onRedoClicked:=>
       if not ($('#redoBtn').hasClass("disabled"))
         @vent.trigger("file:redoRequest")
     
     onUndoClicked:->
-      console.log $('#undoBtn')
       if not ($('#undoBtn').hasClass("disabled"))
         console.log "triggering undo Request"
         @vent.trigger("file:undoRequest")
@@ -168,51 +170,102 @@ define (require)->
     onRender:()=>
       @$el.attr("id",@model.name)
   
-  class RecentFilesView extends Backbone.Marionette.CollectionView
+  class RecentFilesView extends Backbone.Marionette.ItemView
+    
     
   class ExamplesView extends Backbone.Marionette.ItemView
-    
-    constructor:->
-      #examples = require "modules/examples"
-      #{Library,Project,ProjectFile} = require "modules/project"
-    
-    loadExample:(ev)=>
-      #TOTAL HACK !! yuck
-      index = ev.currentTarget.id
-      project = new Project({name:examples[index].name})  
-      mainPart = new ProjectFile
-          name: "mainPart"
-          ext: "coscad"
-          content: examples[index].content    
-      project.add mainPart
+    tagName:  "li"
+    className: "dropdown-submenu examplesTree"
       
-      #VIEW UPDATES
-      if @app.project.isSaveAdvised
-        bootbox.dialog "Project is unsaved, proceed anyway?", [
-          label: "Ok"
-          class: "btn-inverse"
-          callback: =>
-            @app.project = project
-            @app.mainPart= mainPart
-            @app.codeEditorView.switchModel @app.mainPart
-            @app.glThreeView.switchModel @app.mainPart
-            @app.mainMenuView.switchModel @app.project
-        ,
-          label: "Cancel"
-          class: "btn-inverse"
-          callback: ->
-        ]
-      else
-        @app.project = project
-        @app.mainPart= mainPart
-        @app.codeEditorView.switchModel @app.mainPart
-        @app.glThreeView.switchModel @app.mainPart
-        @app.mainMenuView.switchModel @app.project
+    events:
+      "click .example":          "onLoadExampleClicked"
+      
+    constructor:(options)->
+      super options
+      @examplesData= null
+      @examplesHash = {}
+      
+      @appBaseUrl = window.location.protocol + '//' + window.location.host + window.location.pathname
+      @examplesUrl = "#{@appBaseUrl}examples/examples.json"
+      $.get "#{@examplesUrl}", (data) =>
+        @examplesData = data
+        @render()
     
-    onRender:()->
-      @ui.examplesList.html("")
-      for index,example of examples
-        @ui.examplesList.append("<li id='#{index}' class='exampleProject'><a href=#> #{example.name}</a> </li>")
-
+    onLoadExampleClicked:(e)=>
+      exampleFullPath = $(e.currentTarget).data("id")
+      Project = require "modules/core/projects/project"
+      
+      exampleName = exampleFullPath.split('/').pop()
+      deferredList = []
+      
+      project = new Project({name:exampleName}) 
+      for fileName in @examplesHash[exampleFullPath]
+        do(fileName)=>
+          projectFile = project.addFile
+            name: fileName
+            content: ""
+          #we need to do ajax request to fetch the files, so lets use deferreds, to make it more practical
+          filePath = "#{@appBaseUrl}examples#{exampleFullPath}/#{fileName}"
+          deferred = $.get(filePath)
+          deferredList.push(deferred)
+          $.when(deferred).done (fileContent)=>
+            projectFile.content = fileContent
+      
+      $.when.apply($, deferredList).done ()=>
+        project._clearFlags()
+        vent.trigger("project:loaded",project) 
+   
+    render:()=>
+      @isClosed = false
+      @triggerMethod("before:render", @)
+      @triggerMethod("item:before:render", @)
+  
+      rootEl = @_generateExamplesTree()
+      @$el.html("")
+      @$el.append(rootEl)
+      
+      @bindUIElements()
+      @triggerMethod("render", @)
+      @triggerMethod("item:rendered", @)
+      return @
+      
+    _generateExamplesTree:()=>
+      
+      createItem=(jsonObj, $obj)=>
+        $obj = $obj? null
+        if jsonObj.name
+          $obj = $('<a>').attr('href', "#").text(jsonObj.name)
+          #is this a project?
+          if "files" of jsonObj
+            $obj= $obj.prepend($("<i class='icon-file'></i>"))
+          else
+            $obj= $obj.prepend($("<i class='icon-folder-open'></i>"))
+          $obj = $('<li>').append($obj)
+          
+        if jsonObj.length
+          $obj = $('<ul>')
+          for elem in jsonObj
+            $obj.append(createItem(elem))
+            
+        if jsonObj.categories #array  
+          sub = $('<ul>')
+          for elem in jsonObj.categories
+            sub.append(createItem(elem))
+          $obj = $obj.append(sub)
+          sub.addClass("dropdown-menu")
+        
+        if "files" of jsonObj
+          $obj.attr("data-id",jsonObj.path)
+          $obj.addClass("example")
+          #awfull hack
+          @examplesHash[jsonObj.path] = jsonObj.files
+        else
+          $obj.addClass("dropdown-submenu")
+        return $obj
+      
+      result = ""
+      if @examplesData
+        result = createItem(@examplesData["categories"],@$el)
+      return result
 
   return MainMenuView

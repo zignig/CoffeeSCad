@@ -3,6 +3,22 @@
  * 
  * #253565
  */
+
+.examplesTree {
+	list-style: none;
+}
+
+.examplesTree ul{
+	list-style: none;
+	margin: 0 0 0 0;
+}
+
+.example
+{
+	
+}
+
+
 .ui-dialog .ui-dialog-titlebar{
 	padding:0;
 }
@@ -186,6 +202,16 @@ position:absolute;
 	position:fixed;
     top: 30px;/*SAME AS NAVBAR*/
     left: 0;
+}
+
+.initalLoaderOverlay
+{
+	text-align:center;
+	width:100%;
+	height:100%;
+	position:fixed;
+    left: 0;
+    top:30%;
 }
 
 

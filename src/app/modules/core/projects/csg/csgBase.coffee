@@ -65,6 +65,16 @@ define (require)->
     @setter 'material', (material)->
       @_material = material
       @color(material.color)
+     
+    injectOptions:(options,defaults)=>
+      #optionsParser = (options,defaults)->
+      #this generated this.param entries based on the merge between defaults and options
+      fullOptions = utils.merge(options, defaults)
+      for key, value of fullOptions when not @hasOwnProperty(key) #key not in moduleKeywords
+        # Assign properties to the prototype
+        #@::[key] = value
+        @[key]=value
+      return fullOptions
       
     add:(objects...)->
       for obj in objects
@@ -103,7 +113,7 @@ define (require)->
       for key of @
         if key != "polygons" and key!= "isCanonicalized" and key != "isRetesselated" and key != "constructor" and key != "children" and key!= "uid"
           #console.log "key #{key}"
-          if @.hasOwnProperty(key)
+          if @hasOwnProperty(key)
               newInstance[key] = _clone @[key]
       for child in @children
         childClone = child.clone()
@@ -279,6 +289,8 @@ define (require)->
   
       result =
         class: "CSG"
+        realClass: @__proto__.constructor.name
+        uid: @uid
         numPolygons: numpolygons
         numVerticesPerPolygon: numVerticesPerPolygon
         polygonPlaneIndexes: polygonPlaneIndexes
@@ -288,6 +300,7 @@ define (require)->
         planeData: planeData
         shared: shareds
         children: children
+        
   
       result
   

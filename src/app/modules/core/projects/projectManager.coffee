@@ -4,8 +4,8 @@ define (require)->
   Backbone = require 'backbone'
   marionette = require 'marionette'
   
-  vent = require 'modules/core/vent'
-  reqRes = require 'modules/core/reqRes'
+  vent = require 'modules/core/messaging/appVent'
+  reqRes = require 'modules/core/messaging/appReqRes'
   ModalRegion = require 'modules/core/utils/modalRegion'
   
   Settings = require 'modules/core/settings/settings'
@@ -40,10 +40,8 @@ define (require)->
       @settings.on("change", @_onSettingsChanged)
             
     _onSettingsChanged:(settings, value)=> 
-      console.log "settings changed"
       mode = @settings.get("csgCompileMode")
       if mode is "onCodeChange" or mode is "onCodeChangeDelayed"
-        console.log "blah"
         if @project.isCompileAdvised
             @compileProject()
 
@@ -51,6 +49,7 @@ define (require)->
       @project.on("change",@onProjectChanged)
       @project.on("save",@onProjectSaved)
       @project.on("compiled", @onProjectCompiled)
+      @project.on("compile:error",@onProjectCompileError)
 
     createProject:()->
       @project = new Project
@@ -141,24 +140,30 @@ define (require)->
     
     onProjectCompiled:=>
       @vent.trigger("project:compiled")
+    onProjectCompileError:=>
+      @vent.trigger("project:compile:error")
        
     compileProject:=>
       @project.compile
         backgroundProcessing : @settings.get("csgBackgroundProcessing")
       
     onNewProject:()=>
-      @createProject()
+      console.log @project
       if @project.isSaveAdvised
         bootbox.dialog "Project is unsaved, you will loose your changes, proceed anyway?", [
           label: "Ok"
           class: "btn-inverse"
           callback: =>
+            @createProject()
             @vent.trigger("project:loaded", @project) 
         ,
           label: "Cancel"
           class: "btn-inverse"
           callback: ->
         ]
+      else
+        @createProject()
+        @vent.trigger("project:loaded", @project) 
       
     onSaveAsProject:=>
       projectBrowserView = new ProjectBrowserView

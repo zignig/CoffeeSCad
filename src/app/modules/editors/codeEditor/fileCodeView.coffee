@@ -16,7 +16,7 @@ define (require)->
   CoffeeScript = require 'CoffeeScript'
   require 'coffeelint'
   
-  vent = require 'modules/core/vent'
+  vent = require 'modules/core/messaging/appVent'
   codeEditor_template = require "text!./fileCode.tmpl"
 
   class FileCodeView extends Backbone.Marionette.ItemView
@@ -250,7 +250,6 @@ define (require)->
               else cm.replaceSelection("  ", "end")
           "Ctrl-Space": "autocomplete"
           "Ctrl-D":(cm)->
-            console.log cm
             doc = cm.getDoc()
             line = doc.sel.anchor.line
             cm.getDoc().removeLine(line)
