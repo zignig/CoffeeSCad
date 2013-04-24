@@ -260,6 +260,8 @@ define (require) ->
               @grid.setOpacity(val)
           when "gridText"
             @grid.toggleText(val)
+          when "gridNumberingPosition"
+            @grid.setTextLocation(val)
           when "showAxes"
             if val
               @addAxes()
@@ -301,7 +303,7 @@ define (require) ->
               @camera.setZoom(1)
           when "position"
             @setupView(val)
-          when "wireframe"
+          when "objectViewMode"
             #TODO: should not be global , but object specific?
             @_updateAssemblyVisualAttrs()
             @_render()
@@ -497,7 +499,8 @@ define (require) ->
       spotLight = new THREE.SpotLight( 0xbbbbbb, 1.5)    
       spotLight.position.x = 0
       spotLight.position.y = 0
-      spotLight.position.z = 4000
+      spotLight.position.z = 300
+      #spotLight.shadowCameraVisible = true
       spotLight.castShadow = true
       @light= spotLight 
       
@@ -714,15 +717,23 @@ define (require) ->
       @width = 1680 - (westWidth + eastWidth )###
       if not @initialized?
         @initialized = true
-        @width = window.innerWidth
+        console.log "initial view size setting"
+        #@width = window.innerWidth
+        westWidth = $("#_dockZoneWest").width()
+        eastWidth = $("#_dockZoneEast").width()
+        @width = window.innerWidth - (westWidth + eastWidth)
       else
-      westWidth = $("#_dockZoneWest").width()
-      eastWidth = $("#_dockZoneEast").width()
-      @width = window.innerWidth - (westWidth + eastWidth)
-      @height = window.innerHeight-30
+        westWidth = $("#_dockZoneWest").width()
+        eastWidth = $("#_dockZoneEast").width()
+        @width = window.innerWidth - (westWidth + eastWidth)
+        
+      #console.log "window.innerWidth", window.getCoordinates().width#window.outerWidth
       
-      console.log "width", @width
-      console.log "height", @height
+      
+      @height = window.innerHeight-30
+      #@$el.width(@width)
+      #console.log "width", @width
+      #console.log "height", @height
     
     onResize:()=>
       @_computeViewSize()
@@ -783,21 +794,6 @@ define (require) ->
       
       @animate()
       
-    _onDomRefresh:=>
-      console.log "width", @$el.width()
-      console.log "height", @$el.height()
-      @width = @$el.parent().width()
-      @height = @$el.parent().height()
-      ###
-      @$el.on('drop',(e)->
-        #if(e.originalEvent.dataTransfer)
-        # if(e.originalEvent.dataTransfer.files.length)
-        e.preventDefault()
-        e.stopPropagation()
-        console.log "on drop"
-      )
-      ###
-      
     
     _render:()=>
       @renderer.render(@scene, @camera)
@@ -835,6 +831,8 @@ define (require) ->
       @scene.add @assembly 
       end = new Date().getTime()
       console.log "Csg visualization time: #{end-start}"
+      
+      @_updateAssemblyVisualAttrs()
       @_render()
       
     _importGeom:(csgObj,rootObj)=>
@@ -890,12 +888,67 @@ define (require) ->
           @_importGeom(child, mesh) 
      
     _updateAssemblyVisualAttrs:=>
+      console.log "applying object visual style"
+      removeRenderHelpers=(child)=>
+        if child.renderSubElementsHelper?
+          child.remove(child.renderSubElementsHelper)
+          child.renderSubElementsHelper = null
+      
       if @assembly?
         for child in @assembly.children
           child.castShadow =  @settings.shadows
           child.receiveShadow = @settings.selfShadows and @settings.shadows
-          child.material.wireframe = @settings.wireframe
+          switch @settings.objectViewMode
+            when "shaded"
+              removeRenderHelpers(child)
+              child.material.wireframe = false
+            when "wireframe"
+              removeRenderHelpers(child)
+              child.material.wireframe = true
+            when "structural"
+              child.material.wireframe = false
+              if child.geometry?
+                removeRenderHelpers(child)
+                cubeMaterial1 = new THREE.MeshBasicMaterial( { color: 0xccccdd, side: THREE.DoubleSide, depthTest: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 } )
+                dashMaterial = new THREE.LineDashedMaterial( { color: 0x000000, dashSize: 2, gapSize: 3, depthTest: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1  } )
+                cubeMaterial3 = new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: true, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, wireframe: true } )
+                renderSubElementsHelper  = new THREE.Object3D()
+                renderSubElementsHelper.name ="renderSubs"
+                
+                geom = child.geometry
+                obj2 = new THREE.Mesh( geom.clone(), cubeMaterial1 )
+                obj3 = new THREE.Line( @geo2line(geom.clone()), dashMaterial, THREE.LinePieces )
+                obj4 = new THREE.Mesh( geom.clone(), cubeMaterial3)
+        
+                renderSubElementsHelper.add(obj2)
+                renderSubElementsHelper.add(obj3)
+                renderSubElementsHelper.add(obj4)
+                child.add(renderSubElementsHelper)
+                child.renderSubElementsHelper = renderSubElementsHelper
      
+     
+    geo2line:( geo )->
+      # credit to WestLangley!
+      geometry = new THREE.Geometry()
+      vertices = geometry.vertices;
+  
+      for i in [0...geo.faces.length]
+        face = geo.faces[i]
+        if face instanceof THREE.Face3
+          a = geo.vertices[ face.a ].clone()
+          b = geo.vertices[ face.b ].clone()
+          c = geo.vertices[ face.c ].clone()
+          vertices.push( a,b, b,c, c,a )
+        else if face instanceof THREE.Face4
+          a = geo.vertices[ face.a ].clone()
+          b = geo.vertices[ face.b ].clone()
+          c = geo.vertices[ face.c ].clone()
+          d = geo.vertices[ face.d ].clone()
+          vertices.push( a,b, b,c, c,d, d,a )
+
+      geometry.computeLineDistances()
+      return geometry
+
     _addIndicator:(mesh)->
       #experimental ui elements
       

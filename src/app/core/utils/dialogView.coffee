@@ -3,9 +3,7 @@ define (require)->
   $ui = require 'jquery_ui'
   boostrap = require 'bootstrap'
   marionette = require 'marionette'
-
   require 'slider'
-
   dialogTemplate =  require "text!./dialog.tmpl"
 
   class DialogView extends Backbone.Marionette.ItemView
@@ -16,7 +14,9 @@ define (require)->
       options = options or {}
       @width = options.width ? 640
       @height = options.height ? 480
+      @position = options.position ? [100,100]
       @resizeable = options.resizeable ? true
+      @dockable = options.dockable ? false
       @title = options.title ? "Title"
       elName = options.elName ? "dummyDiv"
       @makeEl(elName)
@@ -50,12 +50,58 @@ define (require)->
           stop:(event,ui)=>
             @currentView.$el.trigger("resize")
             @$el.css("height","auto")
+        @$el.css("position","absolute")
     
     _setDragable:=>
       @$el.draggable
         containment: '#mainContent'
         handle: '.dialog-header'
         scroll: false
+   
+    _setTransparency:=>
+      $(".dialog").css("opacity",0.8)
+      ###
+      elements = [".dialog",".dialog-body", "#tabContent","#filesList",".CodeMirror cm-s-lesser-dark CodeMirror-focused",".cm-s-lesser-dark.CodeMirror"]
+      for elem in elements
+        rawBgRgba = $(elem).css("background-color")
+        if not rawBgRgba?
+          rawBgRgba = $(elem).css("background")
+          
+        rgbvals = /rgb\((.+),(.+),(.+)\)/i.exec(rawBgRgba)
+        a = 0.5
+        if rgbvals?
+          r = parseInt(rgbvals[1])
+          g = parseInt(rgbvals[2])
+          b = parseInt(rgbvals[3])
+          newColor = "rgba(#{r},#{g},#{b},#{a})"
+          $(elem).css("background-color",newColor)
+          $(elem).css("background",newColor)
+      ###  
+        
+      ###
+      rawBgRgba = $(".dialog").css("background-color")
+      rgbvals = /rgb\((.+),(.+),(.+)\)/i.exec(rawBgRgba)
+      if rgbvals?
+        r = parseInt(rgbvals[1])
+        g = parseInt(rgbvals[2])
+        b = parseInt(rgbvals[3])
+      else
+        r = 255
+        g = 255
+        b = 255
+      a = 0.2
+      newColor = "rgba(#{r},#{g},#{b},#{a})"
+      console.log "new bg color",newColor 
+      
+      $(".dialog").css("background-color",newColor)
+      #$(".dialog-body").css("background-color",newColor)
+      
+      $("#tabContent").css("background-color",newColor)
+      $(".filesListContainer").css("background-color",newColor)
+      
+      $(".cm-s-lesser-dark.CodeMirror").css("background-color",newColor)
+      #$(".CodeMirror cm-s-lesser-dark CodeMirror-focused").css("background-color",newColor)
+      ###
     
     render:()=>
       @isClosed = false
@@ -81,6 +127,10 @@ define (require)->
       @$el.addClass("dialog floatpanel")
       @$el.css("width",@width)
       @$el.css("height",@height)
+      
+      @$el.css("left",@position[0])
+      @$el.css("top",@position[1])
+      
       triggerResize= =>
         @currentView.$el.trigger("resize")
         @$el.css("height","auto")
@@ -90,17 +140,19 @@ define (require)->
       
       @_setDragable() 
       @_setResizeable()
+      @_setTransparency()
       @_setupBindings()
       @_setupDockZones()
       return @
    
     _setupDockZones:()->
       #should be done once, on start
-      that = @
-      $('.dockZone').droppable
-        tolerance: 'touch',
-        drop: (event, ui)->
-          that._dockDraggable(this, ui.draggable)
+      if @dockable 
+        that = @
+        $('.dockZone').droppable
+          tolerance: 'touch',
+          drop: (event, ui)->
+            that._dockDraggable(this, ui.draggable)
           
     _dockDraggable:(dockzone, draggable)=>
       console.log "docking attempt"
@@ -120,24 +172,46 @@ define (require)->
       
     _setupBindings:()=>
       that = @
-      $('.slider').slider()
       #workaround for twitter bootstrap collapse limitations
       $('#contentContainer').on 'show hide', ()->
         $(this).css('height', 'auto')
       
-      @$el.bind "dragstart", (e, ui)=>
-        if @$el.hasClass('floatpanel')
-          @$el.addClass('draggingpanel')
-      
-      @$el.bind "drag", (e, ui)=>
-        if @$el.hasClass('floatpanel')
-          if not @_touchingBoundary(@$el)
-            @_unsnapAll(@$el, $('.dockZone'))
-        else if (@$el.hasClass('docked'))
-          that._undoc(@$el, e, ui)
+      #TODO: move this to a plugin
+      @$el.on('click.collapse-next.data-api', '[data-toggle=collapse-next]', (e)->
+          $target = $(this).parent().parent().next()
+          if $target.data('collapse')? 
+            $target.collapse('toggle')
+          else $target.collapse()
+        )
+      @$el.on('click.data-dismiss.data-api', '[data-dismiss=dialog]', (e)=>
+          that = @
+          $target = $(this).parent().parent().parent()
+          #this.$element
+          #.removeClass('in')
+          #.attr('aria-hidden', true)
           
-      @$el.bind "dragstop", (e)=>
-          @$el.removeClass('draggingpanel')
+          console.log "hiding bla"
+          $target.addClass("hide")
+          @$el.remove()
+        )
+      
+      
+      if @dockable 
+        @$el.bind "dragstart", (e, ui)=>
+          if @$el.hasClass('floatpanel')
+            @$el.addClass('draggingpanel')
+        
+        @$el.bind "drag", (e, ui)=>
+          if @$el.hasClass('floatpanel')
+            if not @_touchingBoundary(@$el)
+              @_unsnapAll(@$el, $('.dockZone'))
+          else if (@$el.hasClass('docked'))
+            that._undoc(@$el, e, ui)
+            
+        @$el.bind "dragstop", (e)=>
+            @$el.removeClass('draggingpanel')
+            
+        
     
     _touchingBoundary:(p)->
       bTouching = true
@@ -198,6 +272,7 @@ define (require)->
         handles: 's'
         
     _dockEast:(elem, draggable)->
+      console.log "docking east"
       dockZone = elem
       @docked = true
       @dock = elem
@@ -205,9 +280,10 @@ define (require)->
       @savedWidth = draggable.width()
       @savedHeight = draggable.height()
       #fill container: 30 is the navbar size...should be dynamic
-      $(draggable).height($(dockZone).height()-32)
+      ###$(draggable).height($(dockZone).height()-30)
       $(draggable).css("right","0px")
-      $(draggable).css("top",30)
+      $(draggable).css("top",0)###
+      
       $(draggable).addClass('dockEast')
       
       $('#_dockZoneEast').width(draggable.width())
@@ -224,10 +300,8 @@ define (require)->
       $(".dockEast").css("position","absolute") 
       triggerResize= =>
         @currentView.$el.trigger("resize")
+        $('#visual').trigger("resize")
       setTimeout triggerResize, 5
-      
-      $('#visual').trigger("resize")
-      
       
     _dockWest:(elem, draggable)=>
       dockZone = elem
@@ -236,11 +310,9 @@ define (require)->
       #save dockable's current attributes
       @savedWidth = draggable.width()
       @savedHeight = draggable.height()
-      #fill container: 30 is the navbar size...should be dynamic
-      $(draggable).height($(dockZone).height()-32)
-      $(draggable).css("left",0)
-      $(draggable).css("top",30)
-      $(draggable).addClass('dockWest')
+      #$(draggable).height($(dockZone).height()-30)#fill container: 30 is the navbar size...should be dynamic
+      
+      $(draggable).addClass('dockWest')  
       
       $('#_dockZoneWest').width(draggable.width())
       $(".dockWest").resizable
@@ -248,66 +320,74 @@ define (require)->
         handles: "e"
         stop:(event,ui)=>
           @currentView.$el.trigger("resize")
-          $('#_dockZoneWest').width( $(".dockWest").width())
+          $('#_dockZoneWest').width(@$el.width())
           #hack
           $('#visual').trigger("resize")
           
-          
+      triggerResize= =>
+        @currentView.$el.trigger("resize")
+        $('#visual').trigger("resize")
+      setTimeout triggerResize, 5
+
+    _dockSouth:(elem, draggable)->
+      dockZone = elem
+      @docked = true
+      @dock = elem
+      #save dockable's current attributes
+      @savedWidth = draggable.width()
+      @savedHeight = draggable.height()
+      $(draggable).width($(dockZone).width())
+      $(draggable).css("left",0)
+      #$(draggable).css("top",32)
+      
+      $(draggable).addClass('dockSouth')
+      
+      $('#_dockZoneSouth').height(draggable.height())
+      $(".dockSouth").resizable
+        containment: "#mainContent"
+        handles: "n"
+        stop:(event,ui)=>
+          @currentView.$el.trigger("resize")
+          $('#_dockZoneSouth').width( $(".dockSouth").width())
+          #hack
+          $('#visual').trigger("resize")
+      
+      
       #workaround for positioning
-      $(".dockWest").css("position","absolute") 
+      $(".dockSouth").css("position","absolute") 
       triggerResize= =>
         @currentView.$el.trigger("resize")
       setTimeout triggerResize, 5
       
       $('#visual').trigger("resize")
-
-    _dockSouth:(elem, draggable)->
-      $(draggable).addClass('dockSouth')
-      $(draggable).removeAttr('style')
-      $(".dockSouth").resizable
-          handles: 'n'
       
     _undoc:(p, e, ui)=>
       console.log "undocking"
       console.log @
-      
       if @dock?
+        console.log "setting dock width"
         $(@dock).css('width', 10)
         
       console.log "recalling saved dims: width/height", @savedWidth, @savedHeight
       if @savedHeight?
         $(p).css("height",@savedHeight)
       if @savedWidth?
-        $(p).css("wdith",@savedWidth)
+        $(p).css("width",@savedWidth)
       
       $(p).removeClass('docked dockNorth dockEast dockWest dockSouth')
       $(p).addClass('floatpanel draggingpanel')
       
-      ### 
-      ui.position.left = e.pageX
-      ui.position.top = e.pageY
-      ui.originalPosition.left = e.pageX
-      ui.originalPosition.top = e.pageY
-      ui.offset.top = 0
-      ui.offset.left = 0
-      $(p).css('top', e.pageY + 2)
-      $(p).css('left', e.pageX + 2)
-      ###
-      $(p).css('top', 100)
       $(p).resizable('destroy')#destroy previous , constrained resize
-      
-      @_setDragable()
       @_setResizeable()
+      @_setDragable()
       
-      bla= =>
+      triggerResize= =>
         #resize the pannels etc (inner elements first)
-         $('#visual').trigger("resize")
+        $('#visual').trigger("resize")
         @currentView.$el.trigger("resize")
-        #now that the inner elements, have the right size, switch back to auto height to enable correct collapsing
-        @$el.css("height","auto")
-      setTimeout bla, 5
-      
-      return (true)
+        
+      setTimeout triggerResize, 15
+      return true
     
     ### 
     hide: ->
@@ -323,10 +403,14 @@ define (require)->
       Marionette.triggerMethod.call(this, "show", view)
       this.currentView = view
       
+      @_setTransparency()
+      
     hide:(view)->
       this.currentView.close()
       injectTarget = @$el.find("#contentContainer")
       injectTarget.html("")
       this.currentView = null
+      
+    close:()->
         
   return DialogView
